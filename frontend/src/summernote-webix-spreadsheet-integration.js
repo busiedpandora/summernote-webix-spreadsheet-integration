@@ -18,12 +18,6 @@
 } 
 
 (function ($) {
-
-    function insertImageToSummernote(imageBlob, imageStates) {
-        const url = URL.createObjectURL(imageBlob)
-        
-    }
-
     function letterToNumber(letter) {
         return letter.toUpperCase().charCodeAt(0) - 64;
     }
@@ -46,7 +40,6 @@
                 const grid = gridContainer.querySelector('.webix_ss_center_scroll')
                 
                 if (grid) {
-                    console.log(grid)
                     const gridSelected = grid.cloneNode(false)
 
                     const startColumn = letterToNumber(startCell[0])
@@ -69,6 +62,11 @@
                                     columnCopy.appendChild(gridCell.cloneNode(true))
                                 }
                             }
+
+                            gridSelected.style.borderTop = "1px solid #EDEFF0"
+                            gridSelected.style.borderLeft = "1px solid #EDEFF0"
+                            gridSelected.style.borderRight = "1px solid #EDEFF0"
+                            gridSelected.style.borderBottom = "2px solid #EDEFF0"
                             
                             gridSelected.appendChild(columnCopy)
                         }
@@ -77,32 +75,74 @@
                     gridSelected.style.width = selectionWidth
                     gridSelected.style.height = selectionHeight
 
-                    console.log(gridSelected)
-
-                    document.body.appendChild(gridSelected)
-
-                    html2canvas(gridSelected, {
-                    
-                    }).then(function (canvas) {
-                        document.body.removeChild(gridSelected)
-
-                        // Generate the image
-                        const image = canvas.toDataURL("image/png");
-                
-                        /*
-                        // Here you can do something with the image, like saving it
-                        const link = document.createElement("a");
-                        link.href = image;
-                        link.download = "spreadsheet_screenshot.png";
-                        link.click();*/
-                    })
+                    return gridSelected
                 }
             }
-            
         }
+
+        return null
     }
 
-    const openSpreadSheetModal = function(title, width, height, data) {
+    async function generateImage(selectedArea) {
+        const div = document.createElement('div')
+        div.style.width = selectedArea.style.width
+        div.style.height = selectedArea.style.height
+
+        const styleElements = document.querySelectorAll('style[type="text/css"][media="screen,print"]')
+        if (styleElements) {
+            const styleElement = styleElements.length > 1 ? styleElements[styleElements.length - 1] : styleElements[0]
+            if (styleElement) {
+                div.appendChild(styleElement)
+
+                const styleContent = styleElement.textContent
+                const match = styleContent.match(/\.wss_(\d+)/)
+                if (match && match[1]) {
+                    const number = match[1]
+                    selectedArea.classList.add(`wss_${number}`)
+                }
+                else {
+                    selectedArea.classList.add("wss_1")
+                }
+            }
+        }
+        
+        
+        div.appendChild(selectedArea)
+
+        document.body.appendChild(div)
+        const canvas = await html2canvas(div)
+        document.body.removeChild(div)
+
+        const image = canvas.toDataURL("image/png")
+        return image
+    }
+
+    function insertNewImageToSummernote(context, imageData, spreadsheetState) {
+        const img = document.createElement('img')
+        img.src = imageData
+        img.setAttribute("data-spreadsheetState", JSON.stringify(spreadsheetState))
+
+        const div = document.createElement('div')
+        div.style.marginTop = "20px"
+        div.style.marginBottom = "20px"
+        div.appendChild(img)
+
+        $(context.$note).summernote("insertNode", div)
+    }
+
+    function replaceImageInSummernote(context, imageData, oldImage, spreadsheetState) {
+        const img = document.createElement('img')
+        img.src = imageData
+        img.setAttribute("data-spreadsheetState", JSON.stringify(spreadsheetState))
+
+        oldImage.replaceWith(img)
+    }
+
+    const openSpreadSheetModal = function(context, title, selectedImage) {
+        if(selectedImage) {
+            console.log(`selected image: ${selectedImage.attr('data-spreadsheetState')}`)
+        }
+        
         webix.ready(function () {
             webix.ui({
                 id: "spreadsheet-window",
@@ -110,8 +150,8 @@
                 modal: true,
                 position: "center",
                 head: title,
-                width: width,
-                height: height,
+                width: context.options.spreadsheet.width === undefined ? 1200 : context.options.spreadsheet.width,
+                height: context.options.spreadsheet.height === undefined ? 800 : context.options.spreadsheet.height,
                 resize: true,
                 body: {
                     rows: [
@@ -127,22 +167,33 @@
                                         const spreadsheet = $$("spreadsheet-editor")
                                         const selectedRange = spreadsheet.getSelectedRange()
 
-                                        if(selectedRange) {
-                                            console.log(selectedRange)
-
+                                        if (selectedRange) {
                                             const range = selectedRange.split(":")
                                             const startCell = range[0]
                                             const endCell = range[1]
 
-                                            captureSelectedArea(startCell, endCell)
+                                            const selectedArea = captureSelectedArea(startCell, endCell)
+                                            
+                                            if (selectedArea) {
+                                                generateImage(selectedArea).then(imageData => {
+                                                    //console.log(`my image: ${image}`)
+
+                                                    const spreadsheetState = $$("spreadsheet-editor").serialize({ sheets: true })
+
+                                                    if (selectedImage && context.options.spreadsheet.replace) {
+                                                        replaceImageInSummernote(context, imageData, selectedImage, spreadsheetState)
+                                                    }
+                                                    else {
+                                                        insertNewImageToSummernote(context, imageData, spreadsheetState)
+                                                    }
+                                                    
+                                                    $$("spreadsheet-window").close()
+                                                });
+                                            }                                        
                                         }
                                         else {
                                             alert("No cells selected!")
                                         }
-
-
-                                        
-                                        
                                     }
 
                                     },
@@ -169,7 +220,7 @@
                             id: "spreadsheet-editor",
                             view: "spreadsheet",
                             toolbar: "full",
-                            data: JSON.parse(data),
+                            data: selectedImage == null ? null : JSON.parse(selectedImage.attr('data-spreadsheetState'))
                         },
                     ],
                 }
@@ -180,19 +231,35 @@
     // Register plugin actions
     $.extend($.summernote.plugins, {
         'new_spreadsheet': function (context) {
-
-            const options = context.options
-            const width = options.spreadsheet.width === undefined ? 800 : options.spreadsheet.width
-            const height = options.spreadsheet.height === undefined ? 800 : options.spreadsheet.height
-            const crop = options.spreadsheet.crop === undefined ? true : options.spreadsheet.crop
-            const replace = options.spreadsheet.replace === undefined ? true : options.spreadsheet.replace
-
             context.memo('button.new_spreadsheet', function () {
                 const button = $.summernote.ui.button({
                     contents: '<span class="fa fa-child">Insert new spreadsheet</span>',
 					tooltip: 'Open the spreadsheet editor and create a new spreadsheet.',
                     click: () => {
-                        openSpreadSheetModal("New SpreadSheet", width, height, null)
+                        openSpreadSheetModal(context, "New SpreadSheet", null)
+                    }
+                })
+
+                return button.render()
+            })
+        },
+        'edit_spreadsheet': function (context) {
+            context.memo('button.edit_spreadsheet', function () {
+                const button = $.summernote.ui.button({
+                    contents: '<span class="fa fa-child">Edit spreadsheet</span>',
+					tooltip: 'Open the spreadsheet editor and edit the selected spreadsheet.',
+                    click: () => {
+                        const selectedImage = $(context.invoke('restoreTarget')) 
+                        
+                        if (selectedImage && selectedImage.is('img') && selectedImage.attr('data-spreadsheetState')) {
+                            context.invoke('popover.hide')
+
+                            openSpreadSheetModal(context, "Edit SpreadSheet", selectedImage)
+                        }
+                        else {
+                            window.alert("The selected image is not a spreadsheet!")
+                        }
+                
                     }
                 })
 

@@ -12,10 +12,17 @@ $(document).ready(function() {
         ["insert", ["link", "picture", "video"]],
         ["custom", ["new_spreadsheet"]]
       ],
+      popover: {
+        image: [
+          ["imagesize", ["imageSize100", "imageSize50", "imageSize25"]],
+          ["float", ["floatLeft", "floatRight", "floatNone"]],
+          ["remove", ["removeMedia"]],
+          ["custom", ["edit_spreadsheet"]],
+        ]
+      },
       spreadsheet: {
         width: 1200,
         height: 800,
-        crop: true,
         replace: true
       },
     });
