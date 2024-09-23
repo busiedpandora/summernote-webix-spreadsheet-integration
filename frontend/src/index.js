@@ -1,3 +1,6 @@
+// Configure Webix
+webix.env.cdn = "https://cdn.webix.com/"; 
+
 $(document).ready(function() {
     $('#editor').summernote({
       height: 400,
@@ -10,26 +13,10 @@ $(document).ready(function() {
         ["custom", ["new_spreadsheet"]]
       ],
       spreadsheet: {
-        width: 800,
+        width: 1200,
         height: 800,
         crop: true,
         replace: true
       },
     });
   });
-
-  
-
-
-
-/*
-//webix.ready() function ensures that the code will be executed when the page is loaded
-webix.ready(function(){
-  //object constructor
-  webix.ui({
-      view:"spreadsheet",
-      //loaded data object
-      //data: base_data
-  });
-});*/
-  

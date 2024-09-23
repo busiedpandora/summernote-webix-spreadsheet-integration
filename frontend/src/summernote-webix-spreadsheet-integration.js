@@ -19,6 +19,89 @@
 
 (function ($) {
 
+    function insertImageToSummernote(imageBlob, imageStates) {
+        const url = URL.createObjectURL(imageBlob)
+        
+    }
+
+    function letterToNumber(letter) {
+        return letter.toUpperCase().charCodeAt(0) - 64;
+    }
+
+    function captureSelectedArea(startCell, endCell) {
+        const selectionLayer = document.querySelector('.webix_ss_body .webix_ss_center .webix_area_selection_layer');
+
+        if (selectionLayer) {
+            const gridContainer = selectionLayer.closest('.webix_ss_center')
+
+            if (gridContainer) {
+                const selectionLayerTop = selectionLayer.querySelector('.webix_area_selection_top');
+                const selectionLayerLeft = selectionLayer.querySelector('.webix_area_selection_left');
+
+                const selectionTopStartPosition = selectionLayerTop.style.top
+                const selectionLeftStartPosition = selectionLayerLeft.style.left
+                const selectionWidth = selectionLayerTop.style.width
+                const selectionHeight = selectionLayerLeft.style.height
+
+                const grid = gridContainer.querySelector('.webix_ss_center_scroll')
+                
+                if (grid) {
+                    console.log(grid)
+                    const gridSelected = grid.cloneNode(false)
+
+                    const startColumn = letterToNumber(startCell[0])
+                    const startRow = startCell.substring(1)
+                    const endColumn = letterToNumber(endCell[0])
+                    const endRow = endCell.substring(1)
+                    
+                    for (let i = startColumn; i <= endColumn; i++) {
+                        const column = grid.querySelector(`[column="${i}"]`)
+                        if(column) {
+                            const columnCopy = column.cloneNode(false)
+
+                            const columnLeftFloat = parseFloat(columnCopy.style.left) || 0
+                            const selectionLeftFloat = parseFloat(selectionLeftStartPosition) || 0
+                            columnCopy.style.left = `${columnLeftFloat - selectionLeftFloat}px`
+
+                            for (let j = startRow; j <= endRow; j++) {
+                                const gridCell = column.querySelector(`[aria-rowindex="${j}"]`)
+                                if (gridCell) {
+                                    columnCopy.appendChild(gridCell.cloneNode(true))
+                                }
+                            }
+                            
+                            gridSelected.appendChild(columnCopy)
+                        }
+                    }
+
+                    gridSelected.style.width = selectionWidth
+                    gridSelected.style.height = selectionHeight
+
+                    console.log(gridSelected)
+
+                    document.body.appendChild(gridSelected)
+
+                    html2canvas(gridSelected, {
+                    
+                    }).then(function (canvas) {
+                        document.body.removeChild(gridSelected)
+
+                        // Generate the image
+                        const image = canvas.toDataURL("image/png");
+                
+                        /*
+                        // Here you can do something with the image, like saving it
+                        const link = document.createElement("a");
+                        link.href = image;
+                        link.download = "spreadsheet_screenshot.png";
+                        link.click();*/
+                    })
+                }
+            }
+            
+        }
+    }
+
     const openSpreadSheetModal = function(title, width, height, data) {
         webix.ready(function () {
             webix.ui({
@@ -40,7 +123,28 @@
                                 css: "webix_primary",
                                 value: "Save and close",
                                 on: {
-                                    
+                                    onItemClick: () => {
+                                        const spreadsheet = $$("spreadsheet-editor")
+                                        const selectedRange = spreadsheet.getSelectedRange()
+
+                                        if(selectedRange) {
+                                            console.log(selectedRange)
+
+                                            const range = selectedRange.split(":")
+                                            const startCell = range[0]
+                                            const endCell = range[1]
+
+                                            captureSelectedArea(startCell, endCell)
+                                        }
+                                        else {
+                                            alert("No cells selected!")
+                                        }
+
+
+                                        
+                                        
+                                    }
+
                                     },
                                 },
                                 {
@@ -50,11 +154,11 @@
                                     on: {
                                         onItemClick: () => {
                                             const confirm_close = window.confirm("Are you sure you want to close the editor?" + 
-                                                "All unsaved changes will be lost.");
+                                                "All unsaved changes will be lost.")
     
                                             if (confirm_close)
                                             {
-                                                $$("spreadsheet-window").close();
+                                                $$("spreadsheet-window").close()
                                             }
                                         },
                                     }
