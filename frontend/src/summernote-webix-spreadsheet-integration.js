@@ -254,7 +254,7 @@
                         const selectedImage = $(context.invoke('restoreTarget')) 
                         
                         if (selectedImage && selectedImage.is('img') && selectedImage.attr('data-spreadsheetState')) {
-                            context.invoke('popover.hide')
+                            $('.note-popover').hide()
 
                             openSpreadSheetModal(context, "Edit SpreadSheet", selectedImage)
                         }
