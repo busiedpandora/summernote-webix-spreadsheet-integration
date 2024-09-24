@@ -127,6 +127,8 @@
         div.style.marginBottom = "20px"
         div.appendChild(img)
 
+        $(context.$note).summernote("restoreRange")
+        $(context.$note).summernote("focus")
         $(context.$note).summernote("insertNode", div)
     }
 
