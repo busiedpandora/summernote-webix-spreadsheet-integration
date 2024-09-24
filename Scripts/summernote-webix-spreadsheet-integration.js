@@ -141,10 +141,6 @@
     }
 
     const openSpreadSheetModal = function(context, title, selectedImage) {
-        if(selectedImage) {
-            console.log(`selected image: ${selectedImage.attr('data-spreadsheetState')}`)
-        }
-        
         webix.ready(function () {
             webix.ui({
                 id: "spreadsheet-window",
@@ -178,8 +174,6 @@
                                             
                                             if (selectedArea) {
                                                 generateImage(selectedArea).then(imageData => {
-                                                    //console.log(`my image: ${image}`)
-
                                                     const spreadsheetState = $$("spreadsheet-editor").serialize({ sheets: true })
 
                                                     if (selectedImage && context.options.spreadsheet.replace) {
