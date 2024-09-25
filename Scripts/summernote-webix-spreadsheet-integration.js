@@ -31,28 +31,35 @@
         const gridSelected = document.createElement('div')
         gridSelected.classList.add("webix_ss_center_scroll")
         gridSelected.setAttribute("role", "rowgroup")
-        gridSelected.style.width = `${(endColumn - startColumn + 1) * 100}px`
-        gridSelected.style.height = `${(endRow - startRow + 1) * 36}px`
 
         const columnDefault = document.createElement('div')
         columnDefault.classList.add("webix_column")
-        columnDefault.style.width = "100px"
         columnDefault.style.top = "0px"
 
         const gridCellDefault = document.createElement('div')
         gridCellDefault.classList.add("webix_cell")
         gridCellDefault.setAttribute("role", "gridcell")
-        gridCellDefault.style.height = "36px"
+
+        let totalWidth = 0
+        let totalHeight = 0
 
         for (let i = startColumn; i <= endColumn; i++) {
+            const columnObject = spreadsheet.getColumn(i)
+            const columnWidth = columnObject.width
+
             const column = columnDefault.cloneNode(false)
             column.setAttribute("column", i - startColumn + 1)
-            column.style.left = `${(i - startColumn) * 100}px`
+            column.style.width = `${columnWidth}px`
+            column.style.left = `${totalWidth}px`
 
             for (let j = startRow; j <= endRow; j++) {
+                const rowObject = spreadsheet.getRow(j)
+                const rowHeight = rowObject.$height
+
                 const gridCell = gridCellDefault.cloneNode(false)
                 gridCell.setAttribute("aria-rowindex", j - startRow + 1)
-                gridCell.setAttribute("aria-colindex", i - startColumn + 1) 
+                gridCell.setAttribute("aria-colindex", i - startColumn + 1)
+                gridCell.style.height = `${rowHeight}px`
 
                 const value = spreadsheet.getCellValue(j, i, false)
                 if (value) {
@@ -67,11 +74,19 @@
                 }
 
                 column.appendChild(gridCell)
+
+                if (i == startColumn) {
+                    totalHeight += rowHeight
+                }   
             }
 
             gridSelected.appendChild(column)
+
+            totalWidth += columnWidth
         }
 
+        gridSelected.style.width = `${totalWidth}px`
+        gridSelected.style.height = `${totalHeight}px`
         gridSelected.style.border = "1px solid #EDEFF0"
 
         return gridSelected
