@@ -19,68 +19,62 @@
 
 (function ($) {
     function letterToNumber(letter) {
-        return letter.toUpperCase().charCodeAt(0) - 64;
+        return parseInt(letter.toUpperCase().charCodeAt(0) - 64, 10);
     }
 
-    function captureSelectedArea(startCell, endCell) {
-        const selectionLayer = document.querySelector('.webix_ss_body .webix_ss_center .webix_area_selection_layer');
+    function captureSelectedArea(spreadsheet, startCell, endCell) {
+        const startColumn = letterToNumber(startCell[0])
+        const startRow = parseInt(startCell.substring(1), 10)
+        const endColumn = letterToNumber(endCell[0])
+        const endRow = parseInt(endCell.substring(1), 10)
 
-        if (selectionLayer) {
-            const gridContainer = selectionLayer.closest('.webix_ss_center')
+        const gridSelected = document.createElement('div')
+        gridSelected.classList.add("webix_ss_center_scroll")
+        gridSelected.setAttribute("role", "rowgroup")
+        gridSelected.style.width = `${(endColumn - startColumn + 1) * 100}px`
+        gridSelected.style.height = `${(endRow - startRow + 1) * 36}px`
 
-            if (gridContainer) {
-                const selectionLayerTop = selectionLayer.querySelector('.webix_area_selection_top');
-                const selectionLayerLeft = selectionLayer.querySelector('.webix_area_selection_left');
+        const columnDefault = document.createElement('div')
+        columnDefault.classList.add("webix_column")
+        columnDefault.style.width = "100px"
+        columnDefault.style.top = "0px"
 
-                const selectionTopStartPosition = selectionLayerTop.style.top
-                const selectionLeftStartPosition = selectionLayerLeft.style.left
-                const selectionWidth = selectionLayerTop.style.width
-                const selectionHeight = selectionLayerLeft.style.height
+        const gridCellDefault = document.createElement('div')
+        gridCellDefault.classList.add("webix_cell")
+        gridCellDefault.setAttribute("role", "gridcell")
+        gridCellDefault.style.height = "36px"
 
-                const grid = gridContainer.querySelector('.webix_ss_center_scroll')
-                
-                if (grid) {
-                    const gridSelected = grid.cloneNode(false)
+        for (let i = startColumn; i <= endColumn; i++) {
+            const column = columnDefault.cloneNode(false)
+            column.setAttribute("column", i - startColumn + 1)
+            column.style.left = `${(i - startColumn) * 100}px`
 
-                    const startColumn = letterToNumber(startCell[0])
-                    const startRow = startCell.substring(1)
-                    const endColumn = letterToNumber(endCell[0])
-                    const endRow = endCell.substring(1)
-                    
-                    for (let i = startColumn; i <= endColumn; i++) {
-                        const column = grid.querySelector(`[column="${i}"]`)
-                        if(column) {
-                            const columnCopy = column.cloneNode(false)
+            for (let j = startRow; j <= endRow; j++) {
+                const gridCell = gridCellDefault.cloneNode(false)
+                gridCell.setAttribute("aria-rowindex", j - startRow + 1)
+                gridCell.setAttribute("aria-colindex", i - startColumn + 1) 
 
-                            const columnLeftFloat = parseFloat(columnCopy.style.left) || 0
-                            const selectionLeftFloat = parseFloat(selectionLeftStartPosition) || 0
-                            columnCopy.style.left = `${columnLeftFloat - selectionLeftFloat}px`
-
-                            for (let j = startRow; j <= endRow; j++) {
-                                const gridCell = column.querySelector(`[aria-rowindex="${j}"]`)
-                                if (gridCell) {
-                                    columnCopy.appendChild(gridCell.cloneNode(true))
-                                }
-                            }
-
-                            gridSelected.style.borderTop = "1px solid #EDEFF0"
-                            gridSelected.style.borderLeft = "1px solid #EDEFF0"
-                            gridSelected.style.borderRight = "1px solid #EDEFF0"
-                            gridSelected.style.borderBottom = "2px solid #EDEFF0"
-                            
-                            gridSelected.appendChild(columnCopy)
-                        }
-                    }
-
-                    gridSelected.style.width = selectionWidth
-                    gridSelected.style.height = selectionHeight
-
-                    return gridSelected
+                const value = spreadsheet.getCellValue(j, i, false)
+                if (value) {
+                    const div = document.createElement('div')
+                    div.innerHTML = value
+                    gridCell.appendChild(div)
                 }
+                
+                const style = spreadsheet.getStyle(j, i)
+                if (style) {
+                    gridCell.classList.add(`${style.id}`)
+                }
+
+                column.appendChild(gridCell)
             }
+
+            gridSelected.appendChild(column)
         }
 
-        return null
+        gridSelected.style.border = "1px solid #EDEFF0"
+
+        return gridSelected
     }
 
     async function generateImage(selectedArea) {
@@ -105,7 +99,6 @@
                 }
             }
         }
-        
         
         div.appendChild(selectedArea)
 
@@ -163,18 +156,18 @@
                                 on: {
                                     onItemClick: () => {
                                         const spreadsheet = $$("spreadsheet-editor")
-                                        const selectedRange = spreadsheet.getSelectedRange()
+                                        const selectedRange = spreadsheet.getSelectedRange() 
 
                                         if (selectedRange) {
                                             const range = selectedRange.split(":")
                                             const startCell = range[0]
                                             const endCell = range[1]
 
-                                            const selectedArea = captureSelectedArea(startCell, endCell)
-                                            
+                                            const selectedArea = captureSelectedArea(spreadsheet, startCell, endCell)
+
                                             if (selectedArea) {
                                                 generateImage(selectedArea).then(imageData => {
-                                                    const spreadsheetState = $$("spreadsheet-editor").serialize({ sheets: true })
+                                                    const spreadsheetState = spreadsheet.serialize({ sheets: true })
 
                                                     if (selectedImage && context.options.spreadsheet.replace) {
                                                         replaceImageInSummernote(context, imageData, selectedImage, spreadsheetState)
@@ -185,7 +178,7 @@
                                                     
                                                     $$("spreadsheet-window").close()
                                                 });
-                                            }                                        
+                                            }                               
                                         }
                                         else {
                                             alert("No cells selected!")
