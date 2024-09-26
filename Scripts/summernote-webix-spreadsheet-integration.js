@@ -22,7 +22,7 @@
         return parseInt(letter.toUpperCase().charCodeAt(0) - 64, 10);
     }
 
-    function captureSelectedArea(spreadsheet, startCell, endCell) {
+    function captureSelectedCells(spreadsheet, startCell, endCell) {
         const startColumn = letterToNumber(startCell[0])
         const startRow = parseInt(startCell.substring(1), 10)
         const endColumn = letterToNumber(endCell[0])
@@ -90,6 +90,86 @@
         gridSelected.style.border = "1px solid #EDEFF0"
 
         return gridSelected
+    }
+
+    function captureSelectedViewsAboveCells(activeSheet) {
+        const spanLayer = document.querySelector('.webix_ss_body .webix_ss_center .webix_span_layer')
+        const selectionAreaTop = document.querySelector('.webix_ss_body .webix_ss_center .webix_area_selection_layer .webix_area_selection.webix_area_selection_top')
+        const selectionAreaLeft = document.querySelector('.webix_ss_body .webix_ss_center .webix_area_selection_layer .webix_area_selection.webix_area_selection_left')
+
+        if (!spanLayer || !selectionAreaLeft || !selectionAreaTop) {
+            return null
+        }
+
+        const selectionAreaTopPos = Math.abs(parseFloat(spanLayer.style.top)) + parseFloat(selectionAreaTop.style.top)
+        const selectionAreaLeftPos = parseFloat(selectionAreaLeft.style.left)
+        const selectionAreaWidth = parseFloat(selectionAreaTop.style.width)
+        const selectionAreaHeight = parseFloat(selectionAreaLeft.style.height)
+
+        const views = activeSheet.content.views
+
+        const div = document.createElement('div')
+
+        if (views) {
+            views.forEach((view, index) => {
+                const leftPos = view[0]
+                const topPos = view[1]
+                const type = view[2]
+                const width = view[4].width
+                const height = view[4].height
+
+                //check if view is inside selected area
+                if (leftPos - selectionAreaLeftPos >= 0
+                    && topPos - selectionAreaTopPos >= 0
+                    && selectionAreaWidth >= width
+                    && selectionAreaHeight >= height) {
+                    if (type === "image") {
+                        const data = view[3]
+                        const img = document.createElement('img')
+                        img.src = data
+                        img.style.width = `${width}px`
+                        img.style.height = `${height}px`
+                        img.style.position = "absolute"
+                        img.style.display = "block"
+                        img.style.left = `${leftPos - selectionAreaLeftPos}px`
+                        img.style.top = `${topPos - selectionAreaTopPos}px`
+
+                        div.appendChild(img)
+                    }
+                    else if (type === "chart") {
+
+                    }
+                }
+
+                
+            })
+
+            return div
+        }
+
+        return null
+    }
+
+    function createSelectedArea(selectedCells, selectedViews) {
+        if (!selectedCells) {
+            return null
+        }
+
+        if (!selectedViews) {
+            return selectedCells
+        }
+
+        const div = document.createElement('div')
+        div.appendChild(selectedCells)
+        Array.from(selectedViews.children).forEach(child => {
+            div.appendChild(child);
+        });
+
+        div.style.width = selectedCells.style.width
+        div.style.height = selectedCells.style.height
+        div.style.position = "relative"
+
+        return div
     }
 
     async function generateImage(selectedArea) {
@@ -171,19 +251,23 @@
                                 on: {
                                     onItemClick: () => {
                                         const spreadsheet = $$("spreadsheet-editor")
-                                        const selectedRange = spreadsheet.getSelectedRange() 
-
+                                        const spreadsheetState = spreadsheet.serialize({ sheets: true })
+                                        const activeSheetName = spreadsheet.getActiveSheet()
+                                        const activeSheet = spreadsheetState.find(sheet => sheet.name === activeSheetName)
+                                        const selectedRange = spreadsheet.getSelectedRange()
+                                        
                                         if (selectedRange) {
                                             const range = selectedRange.split(":")
                                             const startCell = range[0]
                                             const endCell = range[1]
 
-                                            const selectedArea = captureSelectedArea(spreadsheet, startCell, endCell)
+                                            const selectedCells = captureSelectedCells(spreadsheet, startCell, endCell)
+                                            const selectedViews = captureSelectedViewsAboveCells(activeSheet)
+
+                                            const selectedArea = createSelectedArea(selectedCells, selectedViews)
 
                                             if (selectedArea) {
                                                 generateImage(selectedArea).then(imageData => {
-                                                    const spreadsheetState = spreadsheet.serialize({ sheets: true })
-
                                                     if (selectedImage && context.options.spreadsheet.replace) {
                                                         replaceImageInSummernote(context, imageData, selectedImage, spreadsheetState)
                                                     }
@@ -193,7 +277,7 @@
                                                     
                                                     $$("spreadsheet-window").close()
                                                 });
-                                            }                               
+                                            }                          
                                         }
                                         else {
                                             alert("No cells selected!")
