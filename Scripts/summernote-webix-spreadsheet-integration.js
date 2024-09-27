@@ -18,6 +18,12 @@
 } 
 
 (function ($) {
+
+    let selectionStartTop = 0
+    let selectionStartLeft = 0
+    let selectionHeight = 0
+    let selectionWidth = 0
+
     function letterToNumber(letter) {
         return parseInt(letter.toUpperCase().charCodeAt(0) - 64, 10);
     }
@@ -85,27 +91,17 @@
             totalWidth += columnWidth
         }
 
-        gridSelected.style.width = `${totalWidth}px`
-        gridSelected.style.height = `${totalHeight}px`
+        selectionWidth = totalWidth
+        selectionHeight = totalHeight
+
+        gridSelected.style.width = `${selectionWidth}px`
+        gridSelected.style.height = `${selectionHeight}px`
         gridSelected.style.border = "1px solid #EDEFF0"
 
         return gridSelected
     }
 
     function captureSelectedViewsAboveCells(activeSheet) {
-        const spanLayer = document.querySelector('.webix_ss_body .webix_ss_center .webix_span_layer')
-        const selectionAreaTop = document.querySelector('.webix_ss_body .webix_ss_center .webix_area_selection_layer .webix_area_selection.webix_area_selection_top')
-        const selectionAreaLeft = document.querySelector('.webix_ss_body .webix_ss_center .webix_area_selection_layer .webix_area_selection.webix_area_selection_left')
-
-        if (!spanLayer || !selectionAreaLeft || !selectionAreaTop) {
-            return null
-        }
-
-        const selectionAreaTopPos = Math.abs(parseFloat(spanLayer.style.top)) + parseFloat(selectionAreaTop.style.top)
-        const selectionAreaLeftPos = parseFloat(selectionAreaLeft.style.left)
-        const selectionAreaWidth = parseFloat(selectionAreaTop.style.width)
-        const selectionAreaHeight = parseFloat(selectionAreaLeft.style.height)
-
         const views = activeSheet.content.views
 
         const div = document.createElement('div')
@@ -119,10 +115,10 @@
                 const height = view[4].height
 
                 //check if view is inside selected area
-                if (leftPos - selectionAreaLeftPos >= 0
-                    && topPos - selectionAreaTopPos >= 0
-                    && selectionAreaWidth >= width
-                    && selectionAreaHeight >= height) {
+                if (leftPos - selectionStartLeft >= 0
+                    && topPos - selectionStartTop >= 0
+                    && selectionWidth >= width
+                    && selectionHeight >= height) {
                     if (type === "image") {
                         const data = view[3]
                         const img = document.createElement('img')
@@ -131,8 +127,8 @@
                         img.style.height = `${height}px`
                         img.style.position = "absolute"
                         img.style.display = "block"
-                        img.style.left = `${leftPos - selectionAreaLeftPos}px`
-                        img.style.top = `${topPos - selectionAreaTopPos}px`
+                        img.style.left = `${leftPos - selectionStartLeft}px`
+                        img.style.top = `${topPos - selectionStartTop}px`
 
                         div.appendChild(img)
                     }
@@ -262,6 +258,7 @@
                                             const endCell = range[1]
 
                                             const selectedCells = captureSelectedCells(spreadsheet, startCell, endCell)
+
                                             const selectedViews = captureSelectedViewsAboveCells(activeSheet)
 
                                             const selectedArea = createSelectedArea(selectedCells, selectedViews)
@@ -308,7 +305,38 @@
                             id: "spreadsheet-editor",
                             view: "spreadsheet",
                             toolbar: "full",
-                            data: selectedImage == null ? null : JSON.parse(selectedImage.attr('data-spreadsheetState'))
+                            data: selectedImage == null ? null : JSON.parse(selectedImage.attr('data-spreadsheetState')),
+                            on: {   
+                                onAfterSelect: function (selectedCells) {
+                                    const spreadsheet = $$("spreadsheet-editor")
+
+                                    const length = selectedCells.length
+
+                                    const startRow = selectedCells[0].row
+                                    const startColumn = selectedCells[0].column
+
+                                    const endRow = selectedCells[length - 1].row
+                                    const endColumn = selectedCells[length - 1].column
+
+                                    let startTop = 0
+
+                                    for (let i = 1; i < startRow; i++) {
+                                        const row = spreadsheet.getRow(i)
+                                        startTop += row.$height
+                                    }
+
+                                    let startLeft = 0
+
+                                    for (let i = 1; i < startColumn; i++) {
+                                        const column = spreadsheet.getColumn(i)
+                                        startLeft += column.width
+                                    }
+
+
+                                    selectionStartTop = startTop
+                                    selectionStartLeft = startLeft
+                                }
+                            }
                         },
                     ],
                 }
