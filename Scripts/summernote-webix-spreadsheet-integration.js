@@ -116,10 +116,13 @@
 
                 //check if view is inside selected area
                 if (leftPos - selectionStartLeft >= 0
+                    && leftPos + width <= selectionStartLeft + selectionWidth
                     && topPos - selectionStartTop >= 0
+                    && topPos + height <= selectionStartTop + selectionHeight
                     && selectionWidth >= width
                     && selectionHeight >= height) {
-                    if (type === "image") {
+
+                    if (type === "image") { 
                         const data = view[3]
                         const img = document.createElement('img')
                         img.src = data
@@ -132,12 +135,27 @@
 
                         div.appendChild(img)
                     }
-                    else if (type === "chart") {
+                    else if (type === "chart") { 
+                        const chartContainers = document.querySelectorAll('.webix_ssheet_ui')
+                        if (chartContainers) {
+                            const chartContainer = Array.from(chartContainers).find(cc => {
+                                const style = cc.style
+                                
+                                return parseInt(style.left) === leftPos && parseInt(style.top) === topPos
+                                    && parseInt(style.width) === width && parseInt(style.height) === height
+                            })
 
+                            if (chartContainer) {
+                                chartContainer.style.position = "absolute"
+                                chartContainer.style.display = "block"
+                                chartContainer.style.left = `${leftPos - selectionStartLeft}px`
+                                chartContainer.style.top = `${topPos - selectionStartTop}px`
+
+                                div.appendChild(chartContainer)
+                            }
+                        }
                     }
                 }
-
-                
             })
 
             return div
@@ -274,7 +292,7 @@
                                                     
                                                     $$("spreadsheet-window").close()
                                                 });
-                                            }                          
+                                            }                   
                                         }
                                         else {
                                             alert("No cells selected!")
