@@ -1,1 +1,0 @@
-# summernote-webix-spreadsheet-integration

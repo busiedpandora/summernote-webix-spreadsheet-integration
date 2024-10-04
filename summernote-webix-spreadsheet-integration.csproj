@@ -129,6 +129,7 @@
   <ItemGroup>
     <Content Include="favicon.ico" />
     <Content Include="Global.asax" />
+    <Content Include="index.html" />
     <Content Include="Scripts\index.js" />
     <Content Include="Scripts\summernote-webix-spreadsheet-integration.js" />
     <Content Include="webix.trial.complete\hello.html" />
