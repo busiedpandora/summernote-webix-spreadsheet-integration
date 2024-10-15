@@ -23,17 +23,16 @@
     let selectionStartLeft = 0
     let selectionHeight = 0
     let selectionWidth = 0
+    let selectionStartRow = 0
+    let selectionEndRow = 0
+    let selectionStartColumn = 0
+    let selectionEndColumn = 0
 
     function letterToNumber(letter) {
         return parseInt(letter.toUpperCase().charCodeAt(0) - 64, 10);
     }
 
-    function captureSelectedCells(spreadsheet, startCell, endCell) {
-        const startColumn = letterToNumber(startCell[0])
-        const startRow = parseInt(startCell.substring(1), 10)
-        const endColumn = letterToNumber(endCell[0])
-        const endRow = parseInt(endCell.substring(1), 10)
-
+    function captureSelectedCells(spreadsheet) {
         const gridSelected = document.createElement('div')
         gridSelected.classList.add("webix_ss_center_scroll")
         gridSelected.setAttribute("role", "rowgroup")
@@ -49,22 +48,22 @@
         let totalWidth = 0
         let totalHeight = 0
 
-        for (let i = startColumn; i <= endColumn; i++) {
+        for (let i = selectionStartColumn; i <= selectionEndColumn; i++) {
             const columnObject = spreadsheet.getColumn(i)
             const columnWidth = columnObject.width
 
             const column = columnDefault.cloneNode(false)
-            column.setAttribute("column", i - startColumn + 1)
+            column.setAttribute("column", i - selectionStartColumn + 1)
             column.style.width = `${columnWidth}px`
             column.style.left = `${totalWidth}px`
 
-            for (let j = startRow; j <= endRow; j++) {
+            for (let j = selectionStartRow; j <= selectionEndRow; j++) {
                 const rowObject = spreadsheet.getRow(j)
                 const rowHeight = rowObject.$height
 
                 const gridCell = gridCellDefault.cloneNode(false)
-                gridCell.setAttribute("aria-rowindex", j - startRow + 1)
-                gridCell.setAttribute("aria-colindex", i - startColumn + 1)
+                gridCell.setAttribute("aria-rowindex", j - selectionStartRow + 1)
+                gridCell.setAttribute("aria-colindex", i - selectionStartColumn + 1)
                 gridCell.style.height = `${rowHeight}px`
 
                 const value = spreadsheet.getCellValue(j, i, false)
@@ -81,7 +80,7 @@
 
                 column.appendChild(gridCell)
 
-                if (i == startColumn) {
+                if (i == selectionStartColumn) {
                     totalHeight += rowHeight
                 }   
             }
@@ -271,11 +270,7 @@
                                         const selectedRange = spreadsheet.getSelectedRange()
                                         
                                         if (selectedRange) {
-                                            const range = selectedRange.split(":")
-                                            const startCell = range[0]
-                                            const endCell = range[1]
-
-                                            const selectedCells = captureSelectedCells(spreadsheet, startCell, endCell)
+                                            const selectedCells = captureSelectedCells(spreadsheet)
 
                                             const selectedViews = captureSelectedViewsAboveCells(activeSheet)
 
@@ -336,16 +331,21 @@
                                     const endRow = selectedCells[length - 1].row
                                     const endColumn = selectedCells[length - 1].column
 
+                                    selectionStartRow = startRow
+                                    selectionEndRow = endRow
+                                    selectionStartColumn = startColumn
+                                    selectionEndColumn = endColumn
+
                                     let startTop = 0
 
-                                    for (let i = 1; i < startRow; i++) {
+                                    for (let i = 1; i < selectionStartRow; i++) {
                                         const row = spreadsheet.getRow(i)
                                         startTop += row.$height
                                     }
 
                                     let startLeft = 0
 
-                                    for (let i = 1; i < startColumn; i++) {
+                                    for (let i = 1; i < selectionStartColumn; i++) {
                                         const column = spreadsheet.getColumn(i)
                                         startLeft += column.width
                                     }
