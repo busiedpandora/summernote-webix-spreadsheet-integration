@@ -28,6 +28,36 @@
     let selectionStartColumn = 0
     let selectionEndColumn = 0
 
+
+    function getColumnNumber(column) {
+        let digits = new Array(column.length);
+
+        for (let i = 0; i < column.length; ++i) {
+            digits[i] = column.charCodeAt(i) - 64;
+        }
+
+        let mul = 1;
+        let res = 0;
+
+        for (let pos = digits.length - 1; pos >= 0; --pos) {
+            res += digits[pos] * mul;
+            mul *= 26;
+        }
+
+        return res;
+    }
+
+    function getCellNumber(cell) {
+        const match = cell.match(/^([A-Z]+)(\d+)$/)
+
+        const column = match[1]
+        const columnNumber = getColumnNumber(column)
+        const row = match[2]
+        const rowNumber = parseInt(row, 10)
+
+        return {row: rowNumber, column: columnNumber}
+    }
+
     function captureSelectedCells(spreadsheet) {
         const gridSelected = document.createElement('div')
         gridSelected.classList.add("webix_ss_center_scroll")
@@ -220,7 +250,7 @@
         img.setAttribute("data-spreadsheetState", JSON.stringify(spreadsheetState))
         img.onload = function () {
             if (resize) {
-                const maxWidth = $(context.$note).width()
+                const maxWidth = $(context.$note.parent()).width()
                 if (img.width > maxWidth) {
                     img.style.width = '100%'
                     img.style.height = 'auto'
@@ -276,7 +306,21 @@
                                         const spreadsheetState = spreadsheet.serialize({ sheets: true })
                                         const activeSheetName = spreadsheet.getActiveSheet()
                                         const activeSheet = spreadsheetState.find(sheet => sheet.name === activeSheetName)
+
                                         const selectedRange = spreadsheet.getSelectedRange()
+                                        const range = selectedRange.split(":")
+
+                                        const startCell = range[0]
+                                        const startCellNumber = getCellNumber(startCell)
+                                        const endCell = range[1]
+                                        const endCellNumber = getCellNumber(endCell)
+
+                                        if (selectionEndRow != endCellNumber.row) {
+                                            selectionEndRow = endCellNumber.row
+                                        }
+                                        if (selectionEndColumn != endCellNumber.column) {
+                                            selectionEndColumn = endCellNumber.column
+                                        }
                                         
                                         if (selectedRange) {
                                             const selectedCells = captureSelectedCells(spreadsheet)
