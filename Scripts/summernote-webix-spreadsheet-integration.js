@@ -28,10 +28,6 @@
     let selectionStartColumn = 0
     let selectionEndColumn = 0
 
-    function letterToNumber(letter) {
-        return parseInt(letter.toUpperCase().charCodeAt(0) - 64, 10);
-    }
-
     function captureSelectedCells(spreadsheet) {
         const gridSelected = document.createElement('div')
         gridSelected.classList.add("webix_ss_center_scroll")
@@ -218,10 +214,25 @@
         return image
     }
 
-    function insertNewImageToSummernote(context, imageData, spreadsheetState) {
+    function createImageElement(context, imageData, spreadsheetState, resize) {
         const img = document.createElement('img')
         img.src = imageData
         img.setAttribute("data-spreadsheetState", JSON.stringify(spreadsheetState))
+        img.onload = function () {
+            if (resize) {
+                const maxWidth = $(context.$note).width()
+                if (img.width > maxWidth) {
+                    img.style.width = '100%'
+                    img.style.height = 'auto'
+                }
+            }
+        }
+
+        return img
+    }
+
+    function insertNewImageToSummernote(context, imageData, spreadsheetState, resize) {
+        const img = createImageElement(context, imageData, spreadsheetState, resize)
 
         const div = document.createElement('div')
         div.style.marginTop = "20px"
@@ -233,10 +244,8 @@
         $(context.$note).summernote("insertNode", div)
     }
 
-    function replaceImageInSummernote(context, imageData, oldImage, spreadsheetState) {
-        const img = document.createElement('img')
-        img.src = imageData
-        img.setAttribute("data-spreadsheetState", JSON.stringify(spreadsheetState))
+    function replaceImageInSummernote(context, imageData, oldImage, spreadsheetState, resize) {
+        const img = createImageElement(context, imageData, spreadsheetState, resize)
 
         oldImage.replaceWith(img)
     }
@@ -277,12 +286,14 @@
                                             const selectedArea = createSelectedArea(selectedCells, selectedViews)
 
                                             if (selectedArea) {
+                                                const replace = context.options.spreadsheet.replace
+                                                const resize = context.options.spreadsheet.resize
                                                 generateImage(selectedArea).then(imageData => {
-                                                    if (selectedImage && context.options.spreadsheet.replace) {
-                                                        replaceImageInSummernote(context, imageData, selectedImage, spreadsheetState)
+                                                    if (selectedImage && replace) {
+                                                        replaceImageInSummernote(context, imageData, selectedImage, spreadsheetState, resize)
                                                     }
                                                     else {
-                                                        insertNewImageToSummernote(context, imageData, spreadsheetState)
+                                                        insertNewImageToSummernote(context, imageData, spreadsheetState, resize)
                                                     }
                                                     
                                                     $$("spreadsheet-window").close()
