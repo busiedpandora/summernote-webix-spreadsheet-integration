@@ -334,8 +334,65 @@
                 body: {
                     rows: [
                         {
+                            id: "spreadsheet-editor",
+                            view: "spreadsheet",
+                            toolbar: "full",
+                            data: selectedImage == null ? null : JSON.parse(selectedImage.attr('data-spreadsheetState')),
+                            on: {
+                                onAfterSelect: function (selectedCells) {
+                                    const spreadsheet = $$("spreadsheet-editor")
+
+                                    const length = selectedCells.length
+
+                                    const startRow = selectedCells[0].row
+                                    const startColumn = selectedCells[0].column
+
+                                    const endRow = selectedCells[length - 1].row
+                                    const endColumn = selectedCells[length - 1].column
+
+                                    selectionStartRow = startRow
+                                    selectionEndRow = endRow
+                                    selectionStartColumn = startColumn
+                                    selectionEndColumn = endColumn
+
+                                    let startTop = 0
+
+                                    for (let i = 1; i < selectionStartRow; i++) {
+                                        const row = spreadsheet.getRow(i)
+                                        startTop += row.$height
+                                    }
+
+                                    let startLeft = 0
+
+                                    for (let i = 1; i < selectionStartColumn; i++) {
+                                        const column = spreadsheet.getColumn(i)
+                                        startLeft += column.width
+                                    }
+
+
+                                    selectionStartTop = startTop
+                                    selectionStartLeft = startLeft
+                                }
+                            }
+                        },
+                        {
                             view: "toolbar",
                             elements: [
+                                {
+                                    view: "button",
+                                    css: "webix_danger",
+                                    value: "Close without saving",
+                                    on: {
+                                        onItemClick: () => {
+                                            const confirm_close = window.confirm("Are you sure you want to close the editor?" +
+                                                "All unsaved changes will be lost.")
+
+                                            if (confirm_close) {
+                                                $$("spreadsheet-window").close()
+                                            }
+                                        },
+                                    }
+                                },
                                 {
                                 view: "button",
                                 css: "webix_primary",
@@ -389,67 +446,10 @@
                                     }
 
                                     },
-                                },
-                                {
-                                    view: "button",
-                                    css: "webix_danger",
-                                    value: "Close without saving",
-                                    on: {
-                                        onItemClick: () => {
-                                            const confirm_close = window.confirm("Are you sure you want to close the editor?" + 
-                                                "All unsaved changes will be lost.")
-    
-                                            if (confirm_close)
-                                            {
-                                                $$("spreadsheet-window").close()
-                                            }
-                                        },
-                                    }
                                 }
                             ],
                         },
-                        {
-                            id: "spreadsheet-editor",
-                            view: "spreadsheet",
-                            toolbar: "full",
-                            data: selectedImage == null ? null : JSON.parse(selectedImage.attr('data-spreadsheetState')),
-                            on: {   
-                                onAfterSelect: function (selectedCells) {
-                                    const spreadsheet = $$("spreadsheet-editor")
-
-                                    const length = selectedCells.length
-
-                                    const startRow = selectedCells[0].row
-                                    const startColumn = selectedCells[0].column
-
-                                    const endRow = selectedCells[length - 1].row
-                                    const endColumn = selectedCells[length - 1].column
-
-                                    selectionStartRow = startRow
-                                    selectionEndRow = endRow
-                                    selectionStartColumn = startColumn
-                                    selectionEndColumn = endColumn
-
-                                    let startTop = 0
-
-                                    for (let i = 1; i < selectionStartRow; i++) {
-                                        const row = spreadsheet.getRow(i)
-                                        startTop += row.$height
-                                    }
-
-                                    let startLeft = 0
-
-                                    for (let i = 1; i < selectionStartColumn; i++) {
-                                        const column = spreadsheet.getColumn(i)
-                                        startLeft += column.width
-                                    }
-
-
-                                    selectionStartTop = startTop
-                                    selectionStartLeft = startLeft
-                                }
-                            }
-                        },
+                        
                     ],
                 }
             }).show();
