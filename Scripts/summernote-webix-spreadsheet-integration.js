@@ -328,9 +328,11 @@
                 modal: true,
                 position: "center",
                 head: title,
+                fullscreen: context.options.spreadsheet.fullscreen === undefined ? true : context.options.spreadsheet.fullscreen,
                 width: context.options.spreadsheet.width === undefined ? 1200 : context.options.spreadsheet.width,
                 height: context.options.spreadsheet.height === undefined ? 800 : context.options.spreadsheet.height,
-                resize: true,
+                resize: false,
+                css: "custom-spreadsheet",
                 body: {
                     rows: [
                         {
@@ -380,7 +382,7 @@
                             elements: [
                                 {
                                     view: "button",
-                                    css: "webix_danger",
+                                    css: "close-button",
                                     value: "Close without saving",
                                     on: {
                                         onItemClick: () => {
@@ -394,57 +396,56 @@
                                     }
                                 },
                                 {
-                                view: "button",
-                                css: "webix_primary",
-                                value: "Save and close",
-                                on: {
-                                    onItemClick: () => {
-                                        const spreadsheet = $$("spreadsheet-editor")
-                                        const spreadsheetState = spreadsheet.serialize({ sheets: true })
-                                        const activeSheetName = spreadsheet.getActiveSheet()
-                                        const activeSheet = spreadsheetState.find(sheet => sheet.name === activeSheetName)
-                                        const selectedRange = spreadsheet.getSelectedRange()
+                                    view: "button",
+                                    css: "save-button",
+                                    value: "Save and close",
+                                    on: {
+                                        onItemClick: () => {
+                                            const spreadsheet = $$("spreadsheet-editor")
+                                            const spreadsheetState = spreadsheet.serialize({ sheets: true })
+                                            const activeSheetName = spreadsheet.getActiveSheet()
+                                            const activeSheet = spreadsheetState.find(sheet => sheet.name === activeSheetName)
+                                            const selectedRange = spreadsheet.getSelectedRange()
 
-                                        if (!selectedRange) {
-                                            alert("No cells selected!")
-                                        }
-                                        else {
-                                            const range = selectedRange.split(":")
-                                            const startCell = range[0]
-                                            const startCellNumber = getCellNumber(startCell)
-                                            const endCell = range[1]
-                                            const endCellNumber = getCellNumber(endCell)
-
-                                            if (selectionEndRow != endCellNumber.row) {
-                                                selectionEndRow = endCellNumber.row
+                                            if (!selectedRange) {
+                                                alert("No cells selected!")
                                             }
-                                            if (selectionEndColumn != endCellNumber.column) {
-                                                selectionEndColumn = endCellNumber.column
+                                            else {
+                                                const range = selectedRange.split(":")
+                                                const startCell = range[0]
+                                                const startCellNumber = getCellNumber(startCell)
+                                                const endCell = range[1]
+                                                const endCellNumber = getCellNumber(endCell)
+
+                                                if (selectionEndRow != endCellNumber.row) {
+                                                    selectionEndRow = endCellNumber.row
+                                                }
+                                                if (selectionEndColumn != endCellNumber.column) {
+                                                    selectionEndColumn = endCellNumber.column
+                                                }
+
+                                                const selectedCells = captureSelectedCells(spreadsheet)
+
+                                                const selectedViews = captureSelectedViewsAboveCells(activeSheet)
+
+                                                const selectedArea = createSelectedArea(selectedCells, selectedViews)
+
+                                                if (selectedArea) {
+                                                    const replace = context.options.spreadsheet.replaceImage
+                                                    const resize = context.options.spreadsheet.resizeImage
+                                                    generateImage(selectedArea).then(imageData => {
+                                                        if (selectedImage && replace) {
+                                                            replaceImageInSummernote(context, imageData, selectedImage, spreadsheetState, resize)
+                                                        }
+                                                        else {
+                                                            insertNewImageToSummernote(context, imageData, spreadsheetState, resize)
+                                                        }
+
+                                                        $$("spreadsheet-window").close()
+                                                    });
+                                                }                   
                                             }
-
-                                            const selectedCells = captureSelectedCells(spreadsheet)
-
-                                            const selectedViews = captureSelectedViewsAboveCells(activeSheet)
-
-                                            const selectedArea = createSelectedArea(selectedCells, selectedViews)
-
-                                            if (selectedArea) {
-                                                const replace = context.options.spreadsheet.replace
-                                                const resize = context.options.spreadsheet.resize
-                                                generateImage(selectedArea).then(imageData => {
-                                                    if (selectedImage && replace) {
-                                                        replaceImageInSummernote(context, imageData, selectedImage, spreadsheetState, resize)
-                                                    }
-                                                    else {
-                                                        insertNewImageToSummernote(context, imageData, spreadsheetState, resize)
-                                                    }
-
-                                                    $$("spreadsheet-window").close()
-                                                });
-                                            }                   
                                         }
-                                    }
-
                                     },
                                 }
                             ],

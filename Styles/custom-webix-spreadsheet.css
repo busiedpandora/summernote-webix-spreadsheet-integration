@@ -1,0 +1,25 @@
+﻿.custom-spreadsheet input, .custom-spreadsheet button {
+    font-family: "Helvetica Neue", sans-serif !important;
+}
+
+.custom-spreadsheet .webix_header {
+    font-family: "Helvetica Neue", sans-serif !important;
+    font-size: 1.25rem;
+    font-weight: 500;
+}
+
+.custom-spreadsheet .close-button button {
+    color: #dc3545 !important;
+    background-color: transparent !important;
+    border-width: 1px;
+    border-color: #dc3545 !important;
+    border-radius: .25rem !important;
+}
+
+.custom-spreadsheet .save-button button {
+    color: #28a745 !important;
+    background-color: transparent !important;
+    border-width: 1px;
+    border-color: #28a745 !important;
+    border-radius: .25rem !important;
+}    
