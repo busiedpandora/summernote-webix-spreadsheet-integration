@@ -132,6 +132,7 @@
     <Content Include="index.html" />
     <Content Include="Scripts\index.js" />
     <Content Include="Scripts\summernote-webix-spreadsheet-integration.js" />
+    <Content Include="Styles\custom-webix-spreadsheet.css" />
     <Content Include="webix.trial.complete\hello.html" />
     <Content Include="webix.trial.complete\spreadsheet\backend\images.js" />
     <Content Include="webix.trial.complete\spreadsheet\backend\images\logo.jpg" />

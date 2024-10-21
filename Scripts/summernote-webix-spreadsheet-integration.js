@@ -23,17 +23,68 @@
     let selectionStartLeft = 0
     let selectionHeight = 0
     let selectionWidth = 0
+    let selectionStartRow = 0
+    let selectionEndRow = 0
+    let selectionStartColumn = 0
+    let selectionEndColumn = 0
 
-    function letterToNumber(letter) {
-        return parseInt(letter.toUpperCase().charCodeAt(0) - 64, 10);
+
+    function getColumnNumber(column) {
+        let digits = new Array(column.length);
+
+        for (let i = 0; i < column.length; ++i) {
+            digits[i] = column.charCodeAt(i) - 64;
+        }
+
+        let mul = 1;
+        let res = 0;
+
+        for (let pos = digits.length - 1; pos >= 0; --pos) {
+            res += digits[pos] * mul;
+            mul *= 26;
+        }
+
+        return res;
     }
 
-    function captureSelectedCells(spreadsheet, startCell, endCell) {
-        const startColumn = letterToNumber(startCell[0])
-        const startRow = parseInt(startCell.substring(1), 10)
-        const endColumn = letterToNumber(endCell[0])
-        const endRow = parseInt(endCell.substring(1), 10)
+    function getCellNumber(cell) {
+        const match = cell.match(/^([A-Z]+)(\d+)$/)
 
+        const column = match[1]
+        const columnNumber = getColumnNumber(column)
+        const row = match[2]
+        const rowNumber = parseInt(row, 10)
+
+        return {row: rowNumber, column: columnNumber}
+    }
+
+    function getCellFormatValue(value, format) {
+        let formattedValue = value
+
+        if (format == "price") {
+            formattedValue = new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2
+            }).format(value)
+        }
+        else if (format == "int") {
+            formattedValue = new Intl.NumberFormat('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2 
+            }).format(value)
+        }
+        else if (format == "percent") {
+            formattedValue = new Intl.NumberFormat('en-US', {
+                style: 'percent',
+                maximumFractionDigits: 0
+            }).format(value)
+        }
+
+        return formattedValue
+    }
+
+    function captureSelectedCells(spreadsheet) {
         const gridSelected = document.createElement('div')
         gridSelected.classList.add("webix_ss_center_scroll")
         gridSelected.setAttribute("role", "rowgroup")
@@ -49,39 +100,53 @@
         let totalWidth = 0
         let totalHeight = 0
 
-        for (let i = startColumn; i <= endColumn; i++) {
+        for (let i = selectionStartColumn; i <= selectionEndColumn; i++) {
             const columnObject = spreadsheet.getColumn(i)
             const columnWidth = columnObject.width
 
             const column = columnDefault.cloneNode(false)
-            column.setAttribute("column", i - startColumn + 1)
+            column.setAttribute("column", i - selectionStartColumn + 1)
             column.style.width = `${columnWidth}px`
             column.style.left = `${totalWidth}px`
 
-            for (let j = startRow; j <= endRow; j++) {
+            for (let j = selectionStartRow; j <= selectionEndRow; j++) {
                 const rowObject = spreadsheet.getRow(j)
                 const rowHeight = rowObject.$height
 
                 const gridCell = gridCellDefault.cloneNode(false)
-                gridCell.setAttribute("aria-rowindex", j - startRow + 1)
-                gridCell.setAttribute("aria-colindex", i - startColumn + 1)
+                gridCell.setAttribute("aria-rowindex", j - selectionStartRow + 1)
+                gridCell.setAttribute("aria-colindex", i - selectionStartColumn + 1)
                 gridCell.style.height = `${rowHeight}px`
 
-                const value = spreadsheet.getCellValue(j, i, false)
-                if (value) {
-                    const div = document.createElement('div')
-                    div.innerHTML = value
-                    gridCell.appendChild(div)
-                }
-                
                 const style = spreadsheet.getStyle(j, i)
                 if (style) {
                     gridCell.classList.add(`${style.id}`)
                 }
 
+                const value = spreadsheet.getCellValue(j, i, false)
+                if (value) {
+                    const div = document.createElement('div')
+
+                    if (typeof value === 'number' && !isNaN(value) && style && style.props) {
+                        const format = style.props.format
+                        if (format) {
+                            const formattedValue = getCellFormatValue(value, format)
+                            div.innerHTML = formattedValue
+                        }
+                        else {
+                            div.innerHTML = value
+                        }
+                    }
+                    else {
+                        div.innerHTML = value
+                    }
+
+                    gridCell.appendChild(div)
+                }
+                
                 column.appendChild(gridCell)
 
-                if (i == startColumn) {
+                if (i == selectionStartColumn) {
                     totalHeight += rowHeight
                 }   
             }
@@ -219,10 +284,25 @@
         return image
     }
 
-    function insertNewImageToSummernote(context, imageData, spreadsheetState) {
+    function createImageElement(context, imageData, spreadsheetState, resize) {
         const img = document.createElement('img')
         img.src = imageData
         img.setAttribute("data-spreadsheetState", JSON.stringify(spreadsheetState))
+        img.onload = function () {
+            if (resize) {
+                const maxWidth = $(context.$note.parent()).width()
+                if (img.width > maxWidth) {
+                    img.style.width = '100%'
+                    img.style.height = 'auto'
+                }
+            }
+        }
+
+        return img
+    }
+
+    function insertNewImageToSummernote(context, imageData, spreadsheetState, resize) {
+        const img = createImageElement(context, imageData, spreadsheetState, resize)
 
         const div = document.createElement('div')
         div.style.marginTop = "20px"
@@ -234,10 +314,8 @@
         $(context.$note).summernote("insertNode", div)
     }
 
-    function replaceImageInSummernote(context, imageData, oldImage, spreadsheetState) {
-        const img = document.createElement('img')
-        img.src = imageData
-        img.setAttribute("data-spreadsheetState", JSON.stringify(spreadsheetState))
+    function replaceImageInSummernote(context, imageData, oldImage, spreadsheetState, resize) {
+        const img = createImageElement(context, imageData, spreadsheetState, resize)
 
         oldImage.replaceWith(img)
     }
@@ -250,81 +328,19 @@
                 modal: true,
                 position: "center",
                 head: title,
+                fullscreen: context.options.spreadsheet.fullscreen === undefined ? true : context.options.spreadsheet.fullscreen,
                 width: context.options.spreadsheet.width === undefined ? 1200 : context.options.spreadsheet.width,
                 height: context.options.spreadsheet.height === undefined ? 800 : context.options.spreadsheet.height,
-                resize: true,
+                resize: false,
+                css: "custom-spreadsheet",
                 body: {
                     rows: [
-                        {
-                            view: "toolbar",
-                            elements: [
-                                {
-                                view: "button",
-                                css: "webix_primary",
-                                value: "Save and close",
-                                on: {
-                                    onItemClick: () => {
-                                        const spreadsheet = $$("spreadsheet-editor")
-                                        const spreadsheetState = spreadsheet.serialize({ sheets: true })
-                                        const activeSheetName = spreadsheet.getActiveSheet()
-                                        const activeSheet = spreadsheetState.find(sheet => sheet.name === activeSheetName)
-                                        const selectedRange = spreadsheet.getSelectedRange()
-                                        
-                                        if (selectedRange) {
-                                            const range = selectedRange.split(":")
-                                            const startCell = range[0]
-                                            const endCell = range[1]
-
-                                            const selectedCells = captureSelectedCells(spreadsheet, startCell, endCell)
-
-                                            const selectedViews = captureSelectedViewsAboveCells(activeSheet)
-
-                                            const selectedArea = createSelectedArea(selectedCells, selectedViews)
-
-                                            if (selectedArea) {
-                                                generateImage(selectedArea).then(imageData => {
-                                                    if (selectedImage && context.options.spreadsheet.replace) {
-                                                        replaceImageInSummernote(context, imageData, selectedImage, spreadsheetState)
-                                                    }
-                                                    else {
-                                                        insertNewImageToSummernote(context, imageData, spreadsheetState)
-                                                    }
-                                                    
-                                                    $$("spreadsheet-window").close()
-                                                });
-                                            }                   
-                                        }
-                                        else {
-                                            alert("No cells selected!")
-                                        }
-                                    }
-
-                                    },
-                                },
-                                {
-                                    view: "button",
-                                    css: "webix_danger",
-                                    value: "Close without saving",
-                                    on: {
-                                        onItemClick: () => {
-                                            const confirm_close = window.confirm("Are you sure you want to close the editor?" + 
-                                                "All unsaved changes will be lost.")
-    
-                                            if (confirm_close)
-                                            {
-                                                $$("spreadsheet-window").close()
-                                            }
-                                        },
-                                    }
-                                }
-                            ],
-                        },
                         {
                             id: "spreadsheet-editor",
                             view: "spreadsheet",
                             toolbar: "full",
                             data: selectedImage == null ? null : JSON.parse(selectedImage.attr('data-spreadsheetState')),
-                            on: {   
+                            on: {
                                 onAfterSelect: function (selectedCells) {
                                     const spreadsheet = $$("spreadsheet-editor")
 
@@ -336,16 +352,21 @@
                                     const endRow = selectedCells[length - 1].row
                                     const endColumn = selectedCells[length - 1].column
 
+                                    selectionStartRow = startRow
+                                    selectionEndRow = endRow
+                                    selectionStartColumn = startColumn
+                                    selectionEndColumn = endColumn
+
                                     let startTop = 0
 
-                                    for (let i = 1; i < startRow; i++) {
+                                    for (let i = 1; i < selectionStartRow; i++) {
                                         const row = spreadsheet.getRow(i)
                                         startTop += row.$height
                                     }
 
                                     let startLeft = 0
 
-                                    for (let i = 1; i < startColumn; i++) {
+                                    for (let i = 1; i < selectionStartColumn; i++) {
                                         const column = spreadsheet.getColumn(i)
                                         startLeft += column.width
                                     }
@@ -356,6 +377,80 @@
                                 }
                             }
                         },
+                        {
+                            view: "toolbar",
+                            elements: [
+                                {
+                                    view: "button",
+                                    css: "close-button",
+                                    value: "Close without saving",
+                                    on: {
+                                        onItemClick: () => {
+                                            const confirm_close = window.confirm("Are you sure you want to close the editor?" +
+                                                "All unsaved changes will be lost.")
+
+                                            if (confirm_close) {
+                                                $$("spreadsheet-window").close()
+                                            }
+                                        },
+                                    }
+                                },
+                                {
+                                    view: "button",
+                                    css: "save-button",
+                                    value: "Save and close",
+                                    on: {
+                                        onItemClick: () => {
+                                            const spreadsheet = $$("spreadsheet-editor")
+                                            const spreadsheetState = spreadsheet.serialize({ sheets: true })
+                                            const activeSheetName = spreadsheet.getActiveSheet()
+                                            const activeSheet = spreadsheetState.find(sheet => sheet.name === activeSheetName)
+                                            const selectedRange = spreadsheet.getSelectedRange()
+
+                                            if (!selectedRange) {
+                                                alert("No cells selected!")
+                                            }
+                                            else {
+                                                const range = selectedRange.split(":")
+                                                const startCell = range[0]
+                                                const startCellNumber = getCellNumber(startCell)
+                                                const endCell = range[1]
+                                                const endCellNumber = getCellNumber(endCell)
+
+                                                if (selectionEndRow != endCellNumber.row) {
+                                                    selectionEndRow = endCellNumber.row
+                                                }
+                                                if (selectionEndColumn != endCellNumber.column) {
+                                                    selectionEndColumn = endCellNumber.column
+                                                }
+
+                                                const selectedCells = captureSelectedCells(spreadsheet)
+
+                                                const selectedViews = captureSelectedViewsAboveCells(activeSheet)
+
+                                                const selectedArea = createSelectedArea(selectedCells, selectedViews)
+
+                                                if (selectedArea) {
+                                                    const replace = context.options.spreadsheet.replaceImage
+                                                    const resize = context.options.spreadsheet.resizeImage
+                                                    generateImage(selectedArea).then(imageData => {
+                                                        if (selectedImage && replace) {
+                                                            replaceImageInSummernote(context, imageData, selectedImage, spreadsheetState, resize)
+                                                        }
+                                                        else {
+                                                            insertNewImageToSummernote(context, imageData, spreadsheetState, resize)
+                                                        }
+
+                                                        $$("spreadsheet-window").close()
+                                                    });
+                                                }                   
+                                            }
+                                        }
+                                    },
+                                }
+                            ],
+                        },
+                        
                     ],
                 }
             }).show();
